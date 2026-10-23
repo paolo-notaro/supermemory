@@ -57,9 +57,19 @@ export interface DocumentsListResponse {
 export type { MemoryEntry, MemoryEntryHistory }
 export type MemoryEntriesResponse = MemoriesList
 
-export type Memory =
-	| { id: string; memory: string; similarity: number; documentId?: string }
-	| { id: string; chunk: string; similarity: number; documentId?: string }
+export type SearchMode = "memories" | "hybrid" | "chunks"
+
+interface SearchProvenance {
+	documentId?: string
+	documentTitle?: string | null
+	documentType?: string | null
+}
+
+export type Memory = SearchProvenance &
+	(
+		| { id: string; kind: "memory"; memory: string; similarity: number }
+		| { id: string; kind: "chunk"; chunk: string; similarity: number }
+	)
 
 export interface SearchResult {
 	results: Memory[]
@@ -90,22 +100,33 @@ function limitByChars(text: string, maxChars = MAX_CHARS): string {
 	return text.length > maxChars ? `${text.slice(0, maxChars)}...` : text
 }
 
-function mapSearchResults(results: SearchResponseResultsItem[]): Memory[] {
+export function mapSearchResults(
+	results: SearchResponseResultsItem[],
+): Memory[] {
 	return results.map((result) => {
-		const documentId = result.included?.document?.id
+		const document = result.included?.document
+		const provenance = document
+			? {
+					documentId: document.id,
+					documentTitle: document.title,
+					documentType: document.type,
+				}
+			: {}
 		if (result.chunk && !result.memory) {
 			return {
 				id: result.id,
+				kind: "chunk",
 				similarity: result.similarity,
 				chunk: limitByChars(result.chunk),
-				...(documentId && { documentId }),
+				...provenance,
 			}
 		}
 		return {
 			id: result.id,
+			kind: "memory",
 			similarity: result.similarity,
 			memory: limitByChars(result.memory ?? ""),
-			...(documentId && { documentId }),
+			...provenance,
 		}
 	})
 }
@@ -245,12 +266,16 @@ export class SupermemoryClient {
 		}
 	}
 
-	async search(query: string, limit = 10): Promise<SearchResult> {
+	async search(
+		query: string,
+		limit = 10,
+		searchMode: SearchMode = "memories",
+	): Promise<SearchResult> {
 		try {
 			const result = await this.client.search(this.namespace, {
 				query,
 				limit,
-				searchMode: "memories",
+				searchMode,
 				threshold: SEARCH_THRESHOLD,
 				include: { documents: true },
 			})

@@ -86,9 +86,12 @@ export const searchMemoryOutputSchema = z.object({
 	results: z.array(
 		z.object({
 			id: z.string(),
+			kind: z.enum(["memory", "chunk"]),
 			text: z.string(),
 			similarity: z.number(),
 			documentId: z.string().optional(),
+			documentTitle: z.string().nullable().optional(),
+			documentType: z.string().nullable().optional(),
 			title: z.string().optional(),
 		}),
 	),
