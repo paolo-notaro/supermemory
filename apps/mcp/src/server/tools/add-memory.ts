@@ -16,6 +16,12 @@ export function register(deps: ToolDeps) {
 			.string()
 			.max(200000, "Content exceeds maximum length")
 			.describe("The memory content to save"),
+		dreaming: z
+			.enum(["instant", "dynamic"])
+			.optional()
+			.describe(
+				"Memory extraction mode. Use instant for immediate extraction (additional operation); omit to preserve the API default.",
+			),
 		action: z
 			.enum(["save", "forget"])
 			.optional()
@@ -31,7 +37,7 @@ export function register(deps: ToolDeps) {
 		"add_memory",
 		{
 			description:
-				"Save a memory in the user's ACTIVE space. The target space is the one the user selected via select-space; pass namespace only to override it. To remove outdated information, use the separately exposed forget_memory tool. Legacy action='forget' remains supported for existing clients.",
+				"Save a memory in the user's ACTIVE space. The target space is the one the user selected via select-space; pass namespace only to override it. Optionally choose instant memory extraction; omitting dreaming preserves the API default. To remove outdated information, use the separately exposed forget_memory tool. Legacy action='forget' remains supported for existing clients.",
 			inputSchema,
 			outputSchema: addMemoryOutputSchema,
 			annotations: MEMORY_TOOL_ANNOTATIONS,
@@ -42,7 +48,11 @@ export function register(deps: ToolDeps) {
 				const namespace = await deps.resolveNamespace(namespaceArg(args))
 				const client = deps.getClient(namespace)
 
-				const result = await client.createMemory(args.content)
+				const result = args.dreaming
+					? await client.createMemory(args.content, {
+							dreaming: args.dreaming,
+						})
+					: await client.createMemory(args.content)
 				const message = `Memory saved (ID: ${result.id}, space: ${result.namespace})`
 				const structuredContent: AddMemoryOutput = withLegacyNamespace({
 					action: "save",
