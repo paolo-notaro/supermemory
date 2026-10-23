@@ -1,5 +1,6 @@
 import Supermemory from "supermemory"
 import type {
+	AddRequest,
 	GetDocumentsResponse,
 	ListResponseDocumentsItem,
 	ListResponseMemoriesItem,
@@ -75,12 +76,27 @@ export interface ProfileResponse {
 	profile: Profile
 }
 
+export interface CreateMemoryOptions {
+	documentId?: string
+}
+
 export function getMemoryText(m: Memory): string {
 	return "memory" in m ? m.memory : m.chunk
 }
 
 function limitByChars(text: string, maxChars = MAX_CHARS): string {
 	return text.length > maxChars ? `${text.slice(0, maxChars)}...` : text
+}
+
+export function buildCreateMemoryRequest(
+	content: string,
+	options: CreateMemoryOptions = {},
+): AddRequest {
+	return {
+		content,
+		metadata: { sm_source: MCP_SOURCE },
+		...(options.documentId && { id: options.documentId }),
+	}
 }
 
 function mapSearchResults(results: SearchResponseResultsItem[]): Memory[] {
@@ -194,12 +210,13 @@ export class SupermemoryClient {
 
 	async createMemory(
 		content: string,
+		options: CreateMemoryOptions = {},
 	): Promise<{ id: string; status: string; namespace: string }> {
 		try {
-			const result = await this.client.add(this.namespace, {
-				content,
-				metadata: { sm_source: MCP_SOURCE },
-			})
+			const result = await this.client.add(
+				this.namespace,
+				buildCreateMemoryRequest(content, options),
+			)
 			return {
 				id: result.id,
 				status: result.status,
