@@ -75,6 +75,12 @@ export interface ProfileResponse {
 	profile: Profile
 }
 
+export type DreamingMode = "instant" | "dynamic"
+
+export interface CreateMemoryOptions {
+	dreaming?: DreamingMode
+}
+
 export function getMemoryText(m: Memory): string {
 	return "memory" in m ? m.memory : m.chunk
 }
@@ -194,11 +200,13 @@ export class SupermemoryClient {
 
 	async createMemory(
 		content: string,
+		options: CreateMemoryOptions = {},
 	): Promise<{ id: string; status: string; namespace: string }> {
 		try {
 			const result = await this.client.add(this.namespace, {
 				content,
 				metadata: { sm_source: MCP_SOURCE },
+				...(options.dreaming && { dreaming: options.dreaming }),
 			})
 			return {
 				id: result.id,

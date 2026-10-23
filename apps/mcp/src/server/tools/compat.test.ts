@@ -91,6 +91,50 @@ describe("containerTag compatibility", () => {
 		expect(parsed.namespace).toBeUndefined()
 	})
 
+	it("keeps the API default when dreaming is omitted", async () => {
+		const { deps, tools, client } = fakeDeps()
+		addMemory.register(deps)
+		const tool = tools.get("add_memory")
+		if (!tool) throw new Error("add_memory not registered")
+
+		const parsed = tool.config.inputSchema.parse({ content: "hi" }) as Record<
+			string,
+			unknown
+		>
+		await tool.cb(parsed, {})
+
+		expect(client.createMemory).toHaveBeenCalledWith("hi")
+	})
+
+	it.each([
+		"instant",
+		"dynamic",
+	] as const)("passes dreaming=%s to the client", async (dreaming) => {
+		const { deps, tools, client } = fakeDeps()
+		addMemory.register(deps)
+		const tool = tools.get("add_memory")
+		if (!tool) throw new Error("add_memory not registered")
+
+		const parsed = tool.config.inputSchema.parse({
+			content: "hi",
+			dreaming,
+		}) as Record<string, unknown>
+		await tool.cb(parsed, {})
+
+		expect(client.createMemory).toHaveBeenCalledWith("hi", { dreaming })
+	})
+
+	it("rejects an unknown dreaming mode", () => {
+		const { deps, tools } = fakeDeps()
+		addMemory.register(deps)
+		const tool = tools.get("add_memory")
+		if (!tool) throw new Error("add_memory not registered")
+
+		expect(() =>
+			tool.config.inputSchema.parse({ content: "hi", dreaming: "later" }),
+		).toThrow()
+	})
+
 	it("routes a containerTag-only call to that namespace and emits both keys", async () => {
 		const { deps, tools } = fakeDeps()
 		addMemory.register(deps)
