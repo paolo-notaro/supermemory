@@ -40,8 +40,11 @@ export function formatDocumentsList(response: DocumentsListResponse): string {
 
 	const blocks = documents.map((document) => {
 		const title = document.title?.trim() || "(untitled)"
+		const memoryStatus = document.dreamingStatus
+			? `, memory extraction: ${document.dreamingStatus}`
+			: ""
 		const lines = [
-			`- [${document.id}] "${title}" (${document.type}, ${document.status}, ${day(document.createdAt)})`,
+			`- [${document.id}] "${title}" (${document.type}, ${document.status}${memoryStatus}, ${day(document.createdAt)})`,
 		]
 		if (document.summary?.trim()) {
 			lines.push(`  Summary: ${compactText(document.summary)}`)
@@ -148,9 +151,14 @@ export function formatDocument(document: DocumentDetails): string {
 		`Document ID: ${document.id}`,
 		`Type: ${document.type}`,
 		`Status: ${document.system.status}`,
+	]
+	if (document.system.dreamingStatus) {
+		parts.push(`Memory extraction status: ${document.system.dreamingStatus}`)
+	}
+	parts.push(
 		`Created: ${document.system.createdAt}`,
 		`Updated: ${document.system.updatedAt}`,
-	]
+	)
 
 	if (document.summary?.trim()) {
 		parts.push("", "## Summary", compactText(document.summary, 4_000))
