@@ -53,6 +53,7 @@ export function register(deps: ToolDeps) {
 						createdAt: document.system.createdAt,
 						updatedAt: document.system.updatedAt,
 						summary: document.summary,
+						metadata: document.metadata,
 						content,
 						contentTruncated: truncated,
 					},

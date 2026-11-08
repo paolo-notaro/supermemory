@@ -56,6 +56,9 @@ The client discovers the OAuth authorization server through
 | `list_spaces` | List spaces visible to the authenticated account |
 | `who_am_i` | Return identity, access, and active-space context |
 | `add_memory` | Save a memory, optionally requesting `instant` extraction and/or a stable document ID for append ingestion (legacy `action: "forget"` remains supported) |
+| `batch_add_documents` | Ingest up to 600 stable-ID documents; defaults to SuperRAG and reports per-ID failures |
+| `update_document` | Replace an indexed source in place using PATCH, retaining its ID |
+| `delete_documents` | Delete exact source IDs, reporting partial errors |
 | `forget_memory` | Forget a memory matching the supplied content |
 
 ### MCP App launchers
@@ -146,3 +149,34 @@ The old `SupermemoryMCP` class and binding remain inert for one rollout. This
 keeps the migration non-destructive and rollback-safe. A later deployment can
 delete the old protocol class after production traffic and rollback windows
 have been checked.
+
+
+## Canonical vault / knowledge-base synchronization
+
+Use one stable document ID per source (for example, the Drive file ID). Keep the
+source path, SHA-256 and source revision in `metadata`, and the evidence timestamp
+in `date`; `get_document` returns caller metadata for reconciliation.
+
+- First import: use `batch_add_documents` with `taskType: "superrag"` (the default)
+  to index complete source notes without extracting personal facts from archives.
+  Set `taskType: "memory"` deliberately for curated personal context.
+- Batches accept 1–600 unique document IDs and at most 2,000,000 content characters;
+  each source is limited to 200,000 characters. Start with small bounded batches.
+- Match batch results by ID, not position: the API may return accepted items before
+  failed items. Persist accepted IDs and poll their status; queued is not done.
+- Skip an unchanged source hash. To change an indexed note, read the live canonical
+  source, then call `update_document` with the same ID and replacement content.
+  `add_memory`/batch ingestion append to existing IDs and are not replacement APIs.
+- When a source is intentionally removed, use `delete_documents` only after resolving
+  the exact indexed IDs and authorization. Read every deletion error; successful
+  deletions are not rolled back. Never delete the vault originals.
+- New mutation clients disable automatic retries. After an ambiguous connection
+  failure, reconcile stored IDs/content before replaying any mutation.
+- Changes accept metadata/group scalar values or string arrays, source `date`, and
+  extraction `supportingContext`. Omitting controls on `add_memory` preserves the
+  existing API defaults and legacy `containerTag` compatibility.
+
+These tools expose the synchronization primitives; they do not install a scheduler,
+background importer, quota monitor or automatic two-way synchronization. The live
+Markdown vault remains authoritative. Batch/update/delete check effective namespace
+write access before calling the API and are annotated as destructive mutations.

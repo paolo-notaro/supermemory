@@ -5,6 +5,7 @@ import {
 	namespaceArg,
 	withLegacyNamespace,
 } from "./compat"
+import { documentFields, ingestionFields } from "./document-input"
 import { MEMORY_TOOL_ANNOTATIONS } from "./annotations"
 import { forgetMemory } from "./forget-memory"
 import { addMemoryOutputSchema, type AddMemoryOutput } from "./output-schemas"
@@ -16,6 +17,8 @@ export function register(deps: ToolDeps) {
 			.string()
 			.max(200000, "Content exceeds maximum length")
 			.describe("The memory content to save"),
+		...documentFields,
+		taskType: ingestionFields.taskType,
 		dreaming: z
 			.enum(["instant", "dynamic"])
 			.optional()
@@ -45,7 +48,7 @@ export function register(deps: ToolDeps) {
 		"add_memory",
 		{
 			description:
-				"Save a memory in the user's ACTIVE space. The target space is the one the user selected via select-space; pass namespace only to override it. Optionally choose instant memory extraction and/or provide a stable documentId; reusing it appends the new content while preserving document history. Omitting both options preserves the API defaults. To remove outdated information, use the separately exposed forget_memory tool. Legacy action='forget' remains supported for existing clients.",
+				"Save a memory in the user's ACTIVE space. The target space is the one the user selected via select-space; pass namespace only to override it. Use taskType=superrag for source indexing without memory extraction; metadata/date/group/supportingContext preserve provenance. Optionally choose instant extraction and/or provide a stable documentId; reusing it appends the new content while preserving document history. Omitting the ingestion controls preserves the API defaults. To remove outdated information, use the separately exposed forget_memory tool. Legacy action='forget' remains supported for existing clients.",
 			inputSchema,
 			outputSchema: addMemoryOutputSchema,
 			annotations: MEMORY_TOOL_ANNOTATIONS,
@@ -57,11 +60,18 @@ export function register(deps: ToolDeps) {
 				const client = deps.getClient(namespace)
 
 				const options = {
+					...(args.taskType && { taskType: args.taskType }),
+					...(args.metadata !== undefined && { metadata: args.metadata }),
+					...(args.group !== undefined && { group: args.group }),
+					...(args.date && { date: args.date }),
+					...(args.supportingContext !== undefined && {
+						supportingContext: args.supportingContext,
+					}),
 					...(args.dreaming && { dreaming: args.dreaming }),
 					...(args.documentId && { documentId: args.documentId }),
 				}
 				const result =
-					args.dreaming || args.documentId
+					Object.keys(options).length > 0
 						? await client.createMemory(args.content, options)
 						: await client.createMemory(args.content)
 				const message = `Memory saved (ID: ${result.id}, space: ${result.namespace})`

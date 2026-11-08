@@ -1,6 +1,8 @@
 import Supermemory from "supermemory"
 import type {
 	AddRequest,
+	BatchAddDocumentsRequest,
+	UpdateDocumentsRequest,
 	GetDocumentsResponse,
 	ListResponseDocumentsItem,
 	ListResponseMemoriesItem,
@@ -92,6 +94,11 @@ export type DreamingMode = "instant" | "dynamic"
 export interface CreateMemoryOptions {
 	dreaming?: DreamingMode
 	documentId?: string
+	taskType?: "memory" | "superrag"
+	metadata?: AddRequest["metadata"]
+	group?: AddRequest["group"]
+	date?: string
+	supportingContext?: string
 }
 
 export function getMemoryText(m: Memory): string {
@@ -108,7 +115,13 @@ export function buildCreateMemoryRequest(
 ): AddRequest {
 	return {
 		content,
-		metadata: { sm_source: MCP_SOURCE },
+		metadata: { ...options.metadata, sm_source: MCP_SOURCE },
+		...(options.taskType && { taskType: options.taskType }),
+		...(options.group && { group: options.group }),
+		...(options.date && { date: options.date }),
+		...(options.supportingContext !== undefined && {
+			supportingContext: options.supportingContext,
+		}),
 		...(options.dreaming && { dreaming: options.dreaming }),
 		...(options.documentId && { id: options.documentId }),
 	}
@@ -251,6 +264,57 @@ export class SupermemoryClient {
 			}
 		} catch (error) {
 			this.handleOperationError("Create memory request", error)
+		}
+	}
+
+	async addDocumentsBatch(request: BatchAddDocumentsRequest) {
+		try {
+			const result = await this.client.documents.batchAdd(
+				this.namespace,
+				{
+					...request,
+					documents: request.documents.map((document) => ({
+						...document,
+						metadata: { ...document.metadata, sm_source: MCP_SOURCE },
+					})),
+				},
+				{ maxRetries: 0 },
+			)
+			return { ...result, namespace: this.namespace }
+		} catch (error) {
+			this.handleOperationError("Batch document ingestion", error)
+		}
+	}
+
+	async updateDocument(id: string, request: UpdateDocumentsRequest) {
+		try {
+			const result = await this.client.documents.update(
+				this.namespace,
+				id,
+				{
+					...request,
+					...(request.metadata !== undefined && {
+						metadata: { ...request.metadata, sm_source: MCP_SOURCE },
+					}),
+				},
+				{ maxRetries: 0 },
+			)
+			return { ...result, namespace: this.namespace }
+		} catch (error) {
+			this.handleOperationError("Update document", error)
+		}
+	}
+
+	async deleteDocuments(ids: string[]) {
+		try {
+			const result = await this.client.documents.delete(
+				this.namespace,
+				{ ids },
+				{ maxRetries: 0 },
+			)
+			return { ...result, namespace: this.namespace }
+		} catch (error) {
+			this.handleOperationError("Delete documents", error)
 		}
 	}
 
