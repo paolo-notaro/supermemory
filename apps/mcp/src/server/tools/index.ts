@@ -1,4 +1,7 @@
 import * as addMemory from "./add-memory"
+import * as batchAddDocuments from "./batch-add-documents"
+import * as updateDocument from "./update-document"
+import * as deleteDocuments from "./delete-documents"
 import * as fetchGraphData from "./fetch-graph-data"
 import * as forgetMemory from "./forget-memory"
 import * as getDocument from "./get-document"
@@ -69,6 +72,9 @@ export function registerAllTools(toolDeps: ToolDeps) {
 	memoryGraph.register(deps)
 	fetchGraphData.register(deps)
 	addMemory.register(deps)
+	batchAddDocuments.register(deps)
+	updateDocument.register(deps)
+	deleteDocuments.register(deps)
 	forgetMemory.register(deps)
 	guidedSave.register(deps)
 	saveMemory.register(deps)

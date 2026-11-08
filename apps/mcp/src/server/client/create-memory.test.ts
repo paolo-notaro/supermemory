@@ -34,4 +34,22 @@ describe("create memory requests", () => {
 			dreaming: "instant",
 		})
 	})
+	it("preserves source metadata and SuperRAG controls while keeping the MCP source marker", () => {
+		expect(
+			buildCreateMemoryRequest("source", {
+				taskType: "superrag",
+				metadata: { path: "Work.md", sm_source: "spoofed" },
+				group: { collection: "vault" },
+				date: "2026-11-08T00:00:00Z",
+				supportingContext: "Historical source",
+			}),
+		).toEqual({
+			content: "source",
+			taskType: "superrag",
+			metadata: { path: "Work.md", sm_source: "supermemory-mcp" },
+			group: { collection: "vault" },
+			date: "2026-11-08T00:00:00Z",
+			supportingContext: "Historical source",
+		})
+	})
 })

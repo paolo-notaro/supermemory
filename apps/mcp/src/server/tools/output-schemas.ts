@@ -57,6 +57,7 @@ export const getDocumentOutputSchema = z.object({
 		summary: z.string().nullable(),
 		content: z.string().nullable(),
 		contentTruncated: z.boolean(),
+		metadata: z.record(z.string(), z.unknown()).optional(),
 	}),
 })
 
